@@ -2,7 +2,7 @@
 
 ---
 
-## An introduction to Man in the Middle attacks. This is the first project of a network security branch.
+## An introduction to Man in the Middle attacks. This is the first project of a network security branch at 42.
 
 
 ### What's ARP?

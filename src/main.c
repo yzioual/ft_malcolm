@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <iso646.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,7 +7,17 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include "../libft/libft.h"
+#include <stdint.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <net/ethernet.h>
+#include <arpa/inet.h>
+#include <net/if.h>        /* if_nametoindex */
+#include <netpacket/packet.h> /* sockaddr_ll */
+#include <netinet/if_ether.h>  /* struct ether_arp, ARPHRD_ETHER, ARPOP_REQUEST */
 
 volatile sig_atomic_t g_running = 1;
 
@@ -15,6 +27,11 @@ typedef struct s_options
     int target_count;
     char **targets;
 } t_options;
+
+typedef struct s_session {
+    int sockfd;
+    struct sockaddr_ll sll;
+} t_session;
 
 void handle_sigint(int sig) {
     (void)sig;
@@ -82,11 +99,101 @@ int parse_options(int ac, char **av)
     return 0;
 }
 
-// TODO: main while that will listen for an ARP request and sends back an ARP reply.
-void work()
+int create_socket(t_session *session)
 {
+    // why this has to be unsigned int?
+    unsigned int ifindex;
+
+    ifindex = if_nametoindex("eth0");
+    if (ifindex == 0)
+    {
+        perror("if_nametoindex failed");
+        return (-1);
+    }
+
+    memset(&session->sll, 0, sizeof(session->sll));
+    session->sll.sll_family = AF_PACKET;
+    session->sll.sll_ifindex = (int)ifindex;
+    session->sll.sll_protocol = htons(ETH_P_ARP);
+
+    session->sockfd = socket(
+            session->sll.sll_family, SOCK_RAW, session->sll.sll_protocol);
+    if (session->sockfd < 0)
+    {
+        ft_putstr_fd("[ft_malcolm] Socket creation failed.\n", 2);
+        ft_putstr_fd("[ft_malcolm] Try running the ft_malcolm with sudo.\n", 2);
+        return 1;
+    }
+
+    if (bind(session->sockfd, (struct sockaddr *)&(session->sll), sizeof(session->sll)) < 0)
+    {
+        ft_putstr_fd("[ft_malcolm] bind() failed.", 2);
+        close(session->sockfd);
+        return 1;
+    }
+
+    return (session->sockfd);
+}
+
+int work()
+{
+    t_session session = { NULL };
+    char buffer[1024];
+
+    if (create_socket(&session) != 0)
+    {
+        return 1;
+    }
+
+
+    printf("socket was created successfully.\n");
+
     while (g_running)
-        sleep(30);
+    {
+        printf("we are listening for incoming arp requests.\n");
+        struct sockaddr_ll src_addr;
+        socklen_t addr_len = sizeof(src_addr);
+
+        int bytes = recvfrom(session.sockfd,
+                buffer, sizeof(buffer), 0, (struct sockaddr *)&src_addr, &addr_len);
+
+        if (bytes < 0)
+        {
+            printf("[ft_malcolm] recvfrom() failed.\n");
+            close(session.sockfd);
+            return 1;
+        }
+
+        if ((size_t)bytes < sizeof(struct ethhdr) + sizeof(struct ether_arp))
+            continue;
+
+        struct ethhdr *eth = (struct ethhdr *)buffer;
+        if (ntohs(eth->h_proto) == ETH_P_ARP)
+        {
+            struct ether_arp *arp = (struct ether_arp *)(buffer + sizeof(struct ethhdr));
+
+            /* Check if Hardware is Ethernet (1) and Opcode is ARP Request (1) */
+            if (ntohs(arp->ea_hdr.ar_hrd) == ARPHRD_ETHER &&
+                ntohs(arp->ea_hdr.ar_op) == ARPOP_REQUEST)
+            {
+                char sender_ip[16];
+                char target_ip[16];
+
+                inet_ntop(AF_INET, arp->arp_spa, sender_ip, sizeof(sender_ip));
+                inet_ntop(AF_INET, arp->arp_tpa, target_ip, sizeof(target_ip));
+
+                printf("Captured ARP Request:\n");
+                printf("  Sender MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
+                       arp->arp_sha[0], arp->arp_sha[1], arp->arp_sha[2],
+                       arp->arp_sha[3], arp->arp_sha[4], arp->arp_sha[5]);
+                printf("  Sender IP  : %s\n", sender_ip);
+                printf("  Target IP  : %s\n", target_ip);
+                printf("----------------------------------------\n");
+            }
+        }
+    }
+
+    return 0;
 }
 
 int main(int ac, char **av)
