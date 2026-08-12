@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <iso646.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,7 +18,21 @@
 #include <netpacket/packet.h> /* sockaddr_ll */
 #include <netinet/if_ether.h>  /* struct ether_arp, ARPHRD_ETHER, ARPOP_REQUEST */
 
+
 volatile sig_atomic_t g_running = 1;
+
+
+
+typedef struct s_params {
+    char            *src_ip_str;
+    char            *src_mac_str;
+    char            *target_ip_str;
+    char            *target_mac_str;
+    struct in_addr  src_ip;
+    struct in_addr  target_ip;
+    unsigned char   src_mac[6];
+    unsigned char   target_mac[6];
+} t_params;
 
 typedef struct s_options
 {
@@ -135,6 +148,58 @@ int create_socket(t_session *session)
     return (session->sockfd);
 }
 
+
+int parse_mac(const char *mac_str, unsigned char *mac_out)
+{
+    int bytes[6];
+    if (sscanf(mac_str, "%x:%x:%x:%x:%x:%x",
+               &bytes[0], &bytes[1], &bytes[2],
+               &bytes[3], &bytes[4], &bytes[5]) != 6)
+    {
+        return (-1);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (bytes[i] < 0 || bytes[i] > 255)
+            return (-1);
+        mac_out[i] = (unsigned char)bytes[i];
+    }
+    return (0);
+}
+
+int parse_args(t_params *params)
+{
+    if (inet_pton(AF_INET, params->src_ip_str, &params->src_ip) != 1) {
+        ft_putstr_fd("ft_malcolm: invalid IP address: (%s) ", 2);
+        ft_putstr_fd(params->src_ip_str, 2);
+        ft_putstr_fd("\n", 2);
+        return (-1);
+    }
+
+    if (parse_mac(params->src_mac_str, params->src_mac) < 0) {
+        ft_putstr_fd("ft_malcolm: invalid mac address: (%s) ", 2);
+        ft_putstr_fd(params->src_mac_str, 2);
+        ft_putstr_fd(".\n", 2);
+        return (-1);
+    }
+
+    if (inet_pton(AF_INET, params->target_ip_str, &params->target_ip) != 1) {
+        ft_putstr_fd("ft_malcolm: invalid IP address: (%s) ", 2);
+        ft_putstr_fd(params->target_ip_str, 2);
+        ft_putstr_fd("\n", 2);
+        return (-1);
+    }
+
+    if (parse_mac(params->target_mac_str, params->target_mac) < 0) {
+        ft_putstr_fd("ft_malcolm: invalid mac address: (%s) ", 2);
+        ft_putstr_fd(params->target_mac_str, 2);
+        ft_putstr_fd("\n", 2);
+        return (-1);
+    }
+
+    return (0);
+}
+
 int work()
 {
     t_session session = { NULL };
@@ -144,7 +209,6 @@ int work()
     {
         return 1;
     }
-
 
     printf("socket was created successfully.\n");
 
@@ -204,10 +268,12 @@ int main(int ac, char **av)
     sa_int.sa_handler = handle_sigint;
     sigaction(SIGINT, &sa_int, NULL);
 
+    // TODO: pass in t_params and fill it with user input
     int ret = parse_options(ac, av);
     if (ret < 0 || ret == 1)
         return 1;
 
+    // TODO: pass in all the params and needed input
     work();
 
     return 0;
