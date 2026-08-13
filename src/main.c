@@ -17,28 +17,21 @@
 #include <net/if.h>        /* if_nametoindex */
 #include <netpacket/packet.h> /* sockaddr_ll */
 #include <netinet/if_ether.h>  /* struct ether_arp, ARPHRD_ETHER, ARPOP_REQUEST */
-
+#include <ifaddrs.h> /* get_interface structs */
 
 volatile sig_atomic_t g_running = 1;
 
-
-
-typedef struct s_params {
+typedef struct s_options
+{
     char            *src_ip_str;
     char            *src_mac_str;
     char            *target_ip_str;
     char            *target_mac_str;
+    bool verbose_mode;
     struct in_addr  src_ip;
     struct in_addr  target_ip;
     unsigned char   src_mac[6];
     unsigned char   target_mac[6];
-} t_params;
-
-typedef struct s_options
-{
-    bool verbose_mode;
-    int target_count;
-    char **targets;
 } t_options;
 
 typedef struct s_session {
@@ -64,60 +57,11 @@ void print_help(int ac, char **av)
     return;
 }
 
-int add_target(t_options *opts, const char *target) {
-    char **new_targets;
-
-    if (target == NULL || *target == '\0')
-        return 0;
-    new_targets = realloc(opts->targets, sizeof(*opts->targets) * (opts->target_count + 1));
-    if (new_targets == NULL)
-        return (fprintf(stderr, "ft_malcolm: allocation failed\n"), -1);
-    opts->targets = new_targets;
-    opts->targets[opts->target_count] = strdup(target);
-    if (opts->targets[opts->target_count] == NULL)
-        return (fprintf(stderr, "ft_malcolm: allocation failed\n"), -1);
-    opts->target_count++;
-    return 0;
-}
-
-void free_options(t_options *opts) {
-    size_t i;
-
-    i = 0;
-    while (i < (size_t)opts->target_count) {
-        free(opts->targets[i]);
-        i++;
-    }
-    free(opts->targets);
-}
-
-int parse_options(int ac, char **av)
+int create_socket(t_session *session, char *interface)
 {
-    t_options opts;
-    memset(&opts, 0, sizeof(opts));
-    int i = 0;
-
-    if (ac < 5)
-    {
-        print_help(ac, av);
-        return 1;
-    }
-
-    i = 1;
-    while (i < ac)
-    {
-        add_target(&opts, av[i]);
-        i++;
-    }
-    return 0;
-}
-
-int create_socket(t_session *session)
-{
-    // why this has to be unsigned int?
     unsigned int ifindex;
 
-    ifindex = if_nametoindex("eth0");
+    ifindex = if_nametoindex(interface);
     if (ifindex == 0)
     {
         perror("if_nametoindex failed");
@@ -135,14 +79,14 @@ int create_socket(t_session *session)
     {
         ft_putstr_fd("[ft_malcolm] Socket creation failed.\n", 2);
         ft_putstr_fd("[ft_malcolm] Try running the ft_malcolm with sudo.\n", 2);
-        return 1;
+        return -1;
     }
 
     if (bind(session->sockfd, (struct sockaddr *)&(session->sll), sizeof(session->sll)) < 0)
     {
         ft_putstr_fd("[ft_malcolm] bind() failed.", 2);
         close(session->sockfd);
-        return 1;
+        return -1;
     }
 
     return (session->sockfd);
@@ -167,32 +111,39 @@ int parse_mac(const char *mac_str, unsigned char *mac_out)
     return (0);
 }
 
-int parse_args(t_params *params)
+int parse_args(t_options *opts)
 {
-    if (inet_pton(AF_INET, params->src_ip_str, &params->src_ip) != 1) {
+    if (!opts->src_ip_str || !opts->src_mac_str || !opts->target_ip_str || !opts->target_mac_str)
+    {
+        ft_putstr_fd("ft_malcolm: parsing went wrong!", 2);
+        ft_putstr_fd("\n", 2);
+        return -1;
+    }
+
+    if (inet_pton(AF_INET, opts->src_ip_str, &opts->src_ip) != 1) {
         ft_putstr_fd("ft_malcolm: invalid IP address: (%s) ", 2);
-        ft_putstr_fd(params->src_ip_str, 2);
+        ft_putstr_fd(opts->src_ip_str, 2);
         ft_putstr_fd("\n", 2);
         return (-1);
     }
 
-    if (parse_mac(params->src_mac_str, params->src_mac) < 0) {
+    if (parse_mac(opts->src_mac_str, opts->src_mac) < 0) {
         ft_putstr_fd("ft_malcolm: invalid mac address: (%s) ", 2);
-        ft_putstr_fd(params->src_mac_str, 2);
+        ft_putstr_fd(opts->src_mac_str, 2);
         ft_putstr_fd(".\n", 2);
         return (-1);
     }
 
-    if (inet_pton(AF_INET, params->target_ip_str, &params->target_ip) != 1) {
+    if (inet_pton(AF_INET, opts->target_ip_str, &opts->target_ip) != 1) {
         ft_putstr_fd("ft_malcolm: invalid IP address: (%s) ", 2);
-        ft_putstr_fd(params->target_ip_str, 2);
+        ft_putstr_fd(opts->target_ip_str, 2);
         ft_putstr_fd("\n", 2);
         return (-1);
     }
 
-    if (parse_mac(params->target_mac_str, params->target_mac) < 0) {
+    if (parse_mac(opts->target_mac_str, opts->target_mac) < 0) {
         ft_putstr_fd("ft_malcolm: invalid mac address: (%s) ", 2);
-        ft_putstr_fd(params->target_mac_str, 2);
+        ft_putstr_fd(opts->target_mac_str, 2);
         ft_putstr_fd("\n", 2);
         return (-1);
     }
@@ -200,17 +151,61 @@ int parse_args(t_params *params)
     return (0);
 }
 
-int work()
+char *get_interface()
 {
-    t_session session = { NULL };
-    char buffer[1024];
+    struct ifaddrs *ifaddr, *ifa;
+    static char iface_name[IF_NAMESIZE];
 
-    if (create_socket(&session) != 0)
+    if (getifaddrs(&ifaddr) == -1)
     {
-        return 1;
+        ft_putstr_fd("getifaddrs", 2);
+        return (NULL);
+
+    }
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+    {
+        /* Ensure interface address structure is present */
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        /* Filter for Layer 2 AF_PACKET interfaces */
+        if (ifa->ifa_addr->sa_family == AF_PACKET)
+        {
+            unsigned int flags = ifa->ifa_flags;
+
+            /* Must be UP, RUNNING, and NOT Loopback */
+            if ((flags & IFF_UP) && (flags & IFF_RUNNING) && !(flags & IFF_LOOPBACK))
+            {
+                strncpy(iface_name, ifa->ifa_name, IF_NAMESIZE - 1);
+                iface_name[IF_NAMESIZE - 1] = '\0';
+                freeifaddrs(ifaddr);
+                return (iface_name);
+            }
+        }
     }
 
-    printf("socket was created successfully.\n");
+    freeifaddrs(ifaddr);
+    return (NULL);
+}
+
+int work(t_options opts)
+{
+    t_session session;
+
+    char buffer[1024];
+    char *interface = get_interface();
+    printf("Network Interface: %s\n", interface);
+    if (!interface)
+    {
+        ft_putstr_fd("[ft_malcolm] get_interface failed.\n", 2);
+        return -1;
+    }
+
+    if (create_socket(&session, interface) == -1)
+    {
+        ft_putstr_fd("[ft_malcolm] create_socket failed.\n", 2);
+        return -1;
+    }
 
     while (g_running)
     {
@@ -223,7 +218,7 @@ int work()
 
         if (bytes < 0)
         {
-            printf("[ft_malcolm] recvfrom() failed.\n");
+            ft_putstr_fd("[ft_malcolm] recvfrom() failed.\n", 2);
             close(session.sockfd);
             return 1;
         }
@@ -236,25 +231,69 @@ int work()
         {
             struct ether_arp *arp = (struct ether_arp *)(buffer + sizeof(struct ethhdr));
 
-            /* Check if Hardware is Ethernet (1) and Opcode is ARP Request (1) */
-            if (ntohs(arp->ea_hdr.ar_hrd) == ARPHRD_ETHER &&
-                ntohs(arp->ea_hdr.ar_op) == ARPOP_REQUEST)
+            if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REQUEST)
             {
-                char sender_ip[16];
-                char target_ip[16];
+                char captured_spa[16], captured_tpa[16];
+                char expected_target[16], expected_src[16];
 
-                inet_ntop(AF_INET, arp->arp_spa, sender_ip, sizeof(sender_ip));
-                inet_ntop(AF_INET, arp->arp_tpa, target_ip, sizeof(target_ip));
+                inet_ntop(AF_INET, arp->arp_spa, captured_spa, sizeof(captured_spa));
+                inet_ntop(AF_INET, arp->arp_tpa, captured_tpa, sizeof(captured_tpa));
+                inet_ntop(AF_INET, &opts.target_ip, expected_target, sizeof(expected_target));
+                inet_ntop(AF_INET, &opts.src_ip, expected_src, sizeof(expected_src));
 
-                printf("Captured ARP Request:\n");
-                printf("  Sender MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
-                       arp->arp_sha[0], arp->arp_sha[1], arp->arp_sha[2],
-                       arp->arp_sha[3], arp->arp_sha[4], arp->arp_sha[5]);
-                printf("  Sender IP  : %s\n", sender_ip);
-                printf("  Target IP  : %s\n", target_ip);
-                printf("----------------------------------------\n");
+                printf("--- CAPTURED REQUEST ---\n");
+                printf("Sender IP : %s (Expected Target: %s)\n", captured_spa, expected_target);
+                printf("Target IP : %s (Expected Source: %s)\n", captured_tpa, expected_src);
+                printf("Sender MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                        arp->arp_sha[0], arp->arp_sha[1], arp->arp_sha[2],
+                        arp->arp_sha[3], arp->arp_sha[4], arp->arp_sha[5]);
+                printf("Expected MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                        opts.target_mac[0], opts.target_mac[1], opts.target_mac[2],
+                        opts.target_mac[3], opts.target_mac[4], opts.target_mac[5]);
+                printf("------------------------\n");
+
+                if (memcmp(arp->arp_spa, &opts.target_ip, 4) == 0 &&
+                        memcmp(arp->arp_sha, opts.target_mac, 6) == 0 &&
+                        memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0)
+                {
+                    printf("Matching ARP request detected! Preparing reply...\n");
+                    break;
+                }
             }
         }
+    }
+
+    return 0;
+}
+
+int fill_opts(char **av, t_options *opts)
+{
+    opts->src_ip_str = ft_strdup(av[1]);
+    if (!opts->src_ip_str)
+    {
+        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
+        return -1;
+    }
+
+    opts->src_mac_str = ft_strdup(av[2]);
+    if (!opts->src_mac_str)
+    {
+        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
+        return -1;
+    }
+
+    opts->target_ip_str = ft_strdup(av[3]);
+    if (!opts->target_ip_str)
+    {
+        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
+        return -1;
+    }
+
+    opts->target_mac_str = ft_strdup(av[4]);
+    if (!opts->target_mac_str)
+    {
+        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
+        return -1;
     }
 
     return 0;
@@ -268,13 +307,22 @@ int main(int ac, char **av)
     sa_int.sa_handler = handle_sigint;
     sigaction(SIGINT, &sa_int, NULL);
 
-    // TODO: pass in t_params and fill it with user input
-    int ret = parse_options(ac, av);
-    if (ret < 0 || ret == 1)
-        return 1;
+    if (ac < 5)
+    {
+        ft_putstr_fd("[ft_malcolm] not enough arguments.\n", 2);
+        return -1;
+    }
 
-    // TODO: pass in all the params and needed input
-    work();
+    t_options opts;
+    memset(&opts, 0, sizeof(opts));
+    int ret = fill_opts(av, &opts);
+    if (ret < 0)
+    {
+        ft_putstr_fd("[ft_malcolm] Error occurred while parsing cmd args.\n", 2);
+        return -1;
+    }
+
+    work(opts);
 
     return 0;
 }
