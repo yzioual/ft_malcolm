@@ -266,36 +266,59 @@ int work(t_options opts)
     return 0;
 }
 
+int parse_mac_bytes(const char *mac_str, unsigned char *mac_out)
+{
+    int bytes[6];
+
+    if (sscanf(mac_str, "%x:%x:%x:%x:%x:%x",
+               &bytes[0], &bytes[1], &bytes[2],
+               &bytes[3], &bytes[4], &bytes[5]) != 6)
+        return (-1);
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (bytes[i] < 0 || bytes[i] > 255)
+            return (-1);
+        mac_out[i] = (unsigned char)bytes[i];
+    }
+    return (0);
+}
+
 int fill_opts(char **av, t_options *opts)
 {
     opts->src_ip_str = ft_strdup(av[1]);
-    if (!opts->src_ip_str)
-    {
-        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
-        return -1;
-    }
-
     opts->src_mac_str = ft_strdup(av[2]);
-    if (!opts->src_mac_str)
-    {
-        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
-        return -1;
-    }
-
     opts->target_ip_str = ft_strdup(av[3]);
-    if (!opts->target_ip_str)
-    {
-        ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
-        return -1;
-    }
-
     opts->target_mac_str = ft_strdup(av[4]);
-    if (!opts->target_mac_str)
+    if (!opts->src_ip_str || !opts->src_mac_str || !opts->target_mac_str || !opts->target_ip_str)
     {
         ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
         return -1;
     }
 
+    if (inet_pton(AF_INET, opts->src_ip_str, &opts->src_ip) != 1)
+    {
+        fprintf(stderr, "ft_malcolm: invalid IP address: (%s)\n", opts->src_ip_str);
+        return (-1);
+    }
+
+    if (parse_mac_bytes(opts->src_mac_str, opts->src_mac) < 0)
+    {
+        fprintf(stderr, "ft_malcolm: invalid mac address: (%s)\n", opts->src_mac_str);
+        return (-1);
+    }
+
+    if (inet_pton(AF_INET, opts->target_ip_str, &opts->target_ip) != 1)
+    {
+        fprintf(stderr, "ft_malcolm: invalid IP address: (%s)\n", opts->target_ip_str);
+        return (-1);
+    }
+
+    if (parse_mac_bytes(opts->target_mac_str, opts->target_mac) < 0)
+    {
+        fprintf(stderr, "ft_malcolm: invalid mac address: (%s)\n", opts->target_mac_str);
+        return (-1);
+    }
     return 0;
 }
 
