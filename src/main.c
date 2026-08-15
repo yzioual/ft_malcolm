@@ -252,6 +252,7 @@ int work(t_options opts)
                         opts.target_mac[3], opts.target_mac[4], opts.target_mac[5]);
                 printf("------------------------\n");
 
+                printf("we are waitiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiing\n");
                 if (memcmp(arp->arp_spa, &opts.target_ip, 4) == 0 &&
                         memcmp(arp->arp_sha, opts.target_mac, 6) == 0 &&
                         memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0)
