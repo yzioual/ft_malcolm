@@ -6,6 +6,7 @@ void handle_sigint(int sig) {
     (void)sig;
     g_running = 0;
     ft_putstr_fd("\n[ft_malcolm]\tRecieved Ctrl+c signal, exiting right now...\n", 2);
+    // todo close all fds
     exit(EXIT_SUCCESS);
 }
 
@@ -239,7 +240,6 @@ int work(t_options opts)
 
     while (g_running)
     {
-        printf("we are listening for incoming arp requests.\n");
         struct sockaddr_ll src_addr;
         socklen_t addr_len = sizeof(src_addr);
 
@@ -271,6 +271,7 @@ int work(t_options opts)
                 inet_ntop(AF_INET, &opts.target_ip, expected_target, sizeof(expected_target));
                 inet_ntop(AF_INET, &opts.src_ip, expected_src, sizeof(expected_src));
 
+                /*
                 printf("--- CAPTURED REQUEST ---\n");
                 printf("Sender IP : %s (Expected Target: %s)\n", captured_spa, expected_target);
                 printf("Target IP : %s (Expected Source: %s)\n", captured_tpa, expected_src);
@@ -281,15 +282,16 @@ int work(t_options opts)
                         opts.target_mac[0], opts.target_mac[1], opts.target_mac[2],
                         opts.target_mac[3], opts.target_mac[4], opts.target_mac[5]);
                 printf("------------------------\n");
-
-                printf("we are waitiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiing\n");
-                if (memcmp(arp->arp_spa, &opts.target_ip, 4) == 0 &&
-                        memcmp(arp->arp_sha, opts.target_mac, 6) == 0 &&
-                        memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0)
+                */
+                if (ft_memcmp(arp->arp_spa, &opts.target_ip, 4) == 0 &&
+                        ft_memcmp(arp->arp_sha, opts.target_mac, 6) == 0 &&
+                        ft_memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0)
                 {
+                    /*
                     printf("Matching ARP request detected! Preparing reply...\n");
                     send_arp_reply(&session, &opts);
                     printf("ARP reply was sent! Exiting right now...\n");
+                    */
                     break;
                 }
             }
@@ -368,25 +370,33 @@ int fill_opts(char **av, t_options *opts)
 
     if (inet_pton(AF_INET, opts->src_ip_str, &opts->src_ip) != 1)
     {
-        fprintf(stderr, "[ft_malcolm]: invalid IP address: (%s)\n", opts->src_ip_str);
+        ft_putstr_fd("[ft_malcolm]: invalid IP address: ", 2);
+        ft_putstr_fd(opts->src_ip_str, 2);
+        ft_putstr_fd("\n", 2);
         return (-1);
     }
 
     if (parse_mac_bytes(opts->src_mac_str, opts->src_mac) < 0)
     {
-        fprintf(stderr, "[ft_malcolm]: invalid mac address: (%s)\n", opts->src_mac_str);
+        ft_putstr_fd("[ft_malcolm]: invalid MAC address: ", 2);
+        ft_putstr_fd(opts->src_mac_str, 2);
+        ft_putstr_fd("\n", 2);
         return (-1);
     }
 
     if (inet_pton(AF_INET, opts->target_ip_str, &opts->target_ip) != 1)
     {
-        fprintf(stderr, "[ft_malcolm]: invalid IP address: (%s)\n", opts->target_ip_str);
+        ft_putstr_fd("[ft_malcolm]: invalid IP address: ", 2);
+        ft_putstr_fd(opts->target_ip_str, 2);
+        ft_putstr_fd("\n", 2);
         return (-1);
     }
 
     if (parse_mac_bytes(opts->target_mac_str, opts->target_mac) < 0)
     {
-        fprintf(stderr, "[ft_malcolm]: invalid mac address: (%s)\n", opts->target_mac_str);
+        ft_putstr_fd("[ft_malcolm]: invalid MAC address: ", 2);
+        ft_putstr_fd(opts->target_mac_str, 2);
+        ft_putstr_fd("\n", 2);
         return (-1);
     }
     return 0;
