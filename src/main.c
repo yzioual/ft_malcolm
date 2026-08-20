@@ -28,6 +28,8 @@ int main(int ac, char **av)
         ft_putstr_fd("[ft_malcolm]: root privileges required to create raw sockets.\n", 2);
         return -1;
     }
-    work(opts);
+    ret = work(opts);
+    if (ret < 0)
+        return -1;
     return 0;
 }
