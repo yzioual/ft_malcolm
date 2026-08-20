@@ -1,4 +1,5 @@
 #include "ft_malcolm.h"
+#include <unistd.h>
 
 volatile sig_atomic_t g_running = 1;
 
@@ -6,8 +7,6 @@ void handle_sigint(int sig) {
     (void)sig;
     g_running = 0;
     ft_putstr_fd("\n[ft_malcolm]\tRecieved Ctrl+c signal, exiting right now...\n", 2);
-    // todo close all fds
-    exit(EXIT_SUCCESS);
 }
 
 void print_help(int ac, char **av)
@@ -292,13 +291,14 @@ int work(t_options opts)
                     send_arp_reply(&session, &opts);
                     printf("ARP reply was sent! Exiting right now...\n");
                     */
-                    break;
+                    close(session.sockfd);
+                    return 0;
                 }
             }
         }
     }
-
-    return 0;
+    close(session.sockfd);
+    return -1;
 }
 
 static int hex_char_to_val(char c)
