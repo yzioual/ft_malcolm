@@ -1,7 +1,6 @@
 #ifndef FT_MALCOLM_H
 #define FT_MALCOLM_H
 
-#include <iso646.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

