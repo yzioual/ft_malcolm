@@ -300,21 +300,58 @@ int work(t_options opts)
     return 0;
 }
 
+static int hex_char_to_val(char c)
+{
+    if (c >= '0' && c <= '9')
+        return (c - '0');
+    if (c >= 'a' && c <= 'f')
+        return (c - 'a' + 10);
+    if (c >= 'A' && c <= 'F')
+        return (c - 'A' + 10);
+    return (-1);
+}
+
 int parse_mac_bytes(const char *mac_str, unsigned char *mac_out)
 {
-    int bytes[6];
+    int i;
+    int digit_count;
+    int value;
+    int h;
 
-    if (sscanf(mac_str, "%x:%x:%x:%x:%x:%x",
-               &bytes[0], &bytes[1], &bytes[2],
-               &bytes[3], &bytes[4], &bytes[5]) != 6)
+    if (!mac_str || !mac_out)
         return (-1);
 
-    for (int i = 0; i < 6; i++)
+    for (i = 0; i < 6; i++)
     {
-        if (bytes[i] < 0 || bytes[i] > 255)
+        digit_count = 0;
+        value = 0;
+
+        while (*mac_str && *mac_str != ':')
+        {
+            h = hex_char_to_val(*mac_str);
+            if (h == -1 || digit_count >= 2)
+                return (-1);
+            value = (value << 4) | h;
+            digit_count++;
+            mac_str++;
+        }
+
+        if (digit_count == 0 || value > 0xFF)
             return (-1);
-        mac_out[i] = (unsigned char)bytes[i];
+
+        mac_out[i] = (unsigned char)value;
+
+        if (i < 5)
+        {
+            if (*mac_str != ':')
+                return (-1);
+            mac_str++;
+        }
     }
+
+    if (*mac_str != '\0')
+        return (-1);
+
     return (0);
 }
 
