@@ -8,7 +8,7 @@ int main(int ac, char **av)
     sa_int.sa_handler = handle_sigint;
     sigaction(SIGINT, &sa_int, NULL);
 
-    if (ac < 5)
+    if (ac != 5)
     {
         ft_putstr_fd("[ft_malcolm] not enough arguments.\n", 2);
         return -1;
