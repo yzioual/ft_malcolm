@@ -12,7 +12,7 @@ CC := gcc
 CFLAGS := -Wall -Wextra -Werror -I$(SRC_DIR) -I$(LIBFT_DIR) -MMD -MP -g
 
 LDFLAGS := -L$(LIBFT_DIR)
-LDLIBS := -lft -lpthread
+LDLIBS := -lft
 RM := rm -f
 
 all: $(NAME)
