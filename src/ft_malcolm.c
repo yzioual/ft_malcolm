@@ -45,13 +45,6 @@ int create_socket(t_session *session, char *interface)
         return -1;
     }
 
-    if (bind(session->sockfd, (struct sockaddr *)&(session->sll), sizeof(session->sll)) < 0)
-    {
-        ft_putstr_fd("[ft_malcolm] bind() failed.", 2);
-        close(session->sockfd);
-        return -1;
-    }
-
     return (session->sockfd);
 }
 
