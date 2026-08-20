@@ -22,6 +22,12 @@ int main(int ac, char **av)
         ft_putstr_fd("[ft_malcolm] Error occurred while parsing cmd args.\n", 2);
         return -1;
     }
+
+    if (getuid() != 0)
+    {
+        ft_putstr_fd("[ft_malcolm]: root privileges required to create raw sockets.\n", 2);
+        return -1;
+    }
     work(opts);
     return 0;
 }

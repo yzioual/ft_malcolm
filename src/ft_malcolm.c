@@ -222,10 +222,9 @@ int send_arp_reply(t_session *session, t_options *opts)
 int work(t_options opts)
 {
     t_session session;
-
     char buffer[1024];
     char *interface = get_interface();
-    printf("Network Interface: %s\n", interface);
+
     if (!interface)
     {
         ft_putstr_fd("[ft_malcolm] get_interface failed.\n", 2);
@@ -369,25 +368,25 @@ int fill_opts(char **av, t_options *opts)
 
     if (inet_pton(AF_INET, opts->src_ip_str, &opts->src_ip) != 1)
     {
-        fprintf(stderr, "ft_malcolm: invalid IP address: (%s)\n", opts->src_ip_str);
+        fprintf(stderr, "[ft_malcolm]: invalid IP address: (%s)\n", opts->src_ip_str);
         return (-1);
     }
 
     if (parse_mac_bytes(opts->src_mac_str, opts->src_mac) < 0)
     {
-        fprintf(stderr, "ft_malcolm: invalid mac address: (%s)\n", opts->src_mac_str);
+        fprintf(stderr, "[ft_malcolm]: invalid mac address: (%s)\n", opts->src_mac_str);
         return (-1);
     }
 
     if (inet_pton(AF_INET, opts->target_ip_str, &opts->target_ip) != 1)
     {
-        fprintf(stderr, "ft_malcolm: invalid IP address: (%s)\n", opts->target_ip_str);
+        fprintf(stderr, "[ft_malcolm]: invalid IP address: (%s)\n", opts->target_ip_str);
         return (-1);
     }
 
     if (parse_mac_bytes(opts->target_mac_str, opts->target_mac) < 0)
     {
-        fprintf(stderr, "ft_malcolm: invalid mac address: (%s)\n", opts->target_mac_str);
+        fprintf(stderr, "[ft_malcolm]: invalid mac address: (%s)\n", opts->target_mac_str);
         return (-1);
     }
     return 0;
