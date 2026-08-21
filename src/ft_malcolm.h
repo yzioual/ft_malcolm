@@ -1,7 +1,6 @@
 #ifndef FT_MALCOLM_H
 #define FT_MALCOLM_H
 
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -20,6 +19,9 @@
 #include <ifaddrs.h> /* get_interface structs */
 #include <net/if.h>        /* if_nametoindex */
 #include <netpacket/packet.h> /* sockaddr_ll */
+#include <stddef.h>
+#include <unistd.h>
+
 
 typedef struct s_options
 {

