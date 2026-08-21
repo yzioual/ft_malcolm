@@ -42,13 +42,12 @@ typedef struct s_session {
 } t_session;
 
 void handle_sigint(int sig);
-void print_help(int ac, char **av);
 int create_socket(t_session *session, char *interface);
 int parse_mac(const char *mac_str, unsigned char *mac_out);
-int parse_args(t_options *opts);
 char *get_interface();
 int send_arp_reply(t_session *session, t_options *opts);
 int fill_opts(char **av, t_options *opts);
-int work(t_options opts);
+void free_options(t_options *opts);
+int work(t_options *opts);
 
 #endif
