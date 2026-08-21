@@ -356,6 +356,33 @@ int parse_mac_bytes(const char *mac_str, unsigned char *mac_out)
     return (0);
 }
 
+void free_options(t_options *opts)
+{
+    if (!opts)
+        return;
+
+    if (opts->src_ip_str)
+    {
+        free(opts->src_ip_str);
+        opts->src_ip_str = NULL;
+    }
+    if (opts->src_mac_str)
+    {
+        free(opts->src_mac_str);
+        opts->src_mac_str = NULL;
+    }
+    if (opts->target_ip_str)
+    {
+        free(opts->target_ip_str);
+        opts->target_ip_str = NULL;
+    }
+    if (opts->target_mac_str)
+    {
+        free(opts->target_mac_str);
+        opts->target_mac_str = NULL;
+    }
+}
+
 int fill_opts(char **av, t_options *opts)
 {
     opts->src_ip_str = ft_strdup(av[1]);
@@ -365,6 +392,7 @@ int fill_opts(char **av, t_options *opts)
     if (!opts->src_ip_str || !opts->src_mac_str || !opts->target_mac_str || !opts->target_ip_str)
     {
         ft_putstr_fd("[ft_malcolm] strdup failed.\n", 2);
+        free_options(opts);
         return -1;
     }
 
@@ -373,6 +401,7 @@ int fill_opts(char **av, t_options *opts)
         ft_putstr_fd("[ft_malcolm]: invalid IP address: ", 2);
         ft_putstr_fd(opts->src_ip_str, 2);
         ft_putstr_fd("\n", 2);
+        free_options(opts);
         return (-1);
     }
 
@@ -381,6 +410,7 @@ int fill_opts(char **av, t_options *opts)
         ft_putstr_fd("[ft_malcolm]: invalid MAC address: ", 2);
         ft_putstr_fd(opts->src_mac_str, 2);
         ft_putstr_fd("\n", 2);
+        free_options(opts);
         return (-1);
     }
 
@@ -389,6 +419,7 @@ int fill_opts(char **av, t_options *opts)
         ft_putstr_fd("[ft_malcolm]: invalid IP address: ", 2);
         ft_putstr_fd(opts->target_ip_str, 2);
         ft_putstr_fd("\n", 2);
+        free_options(opts);
         return (-1);
     }
 
@@ -397,6 +428,7 @@ int fill_opts(char **av, t_options *opts)
         ft_putstr_fd("[ft_malcolm]: invalid MAC address: ", 2);
         ft_putstr_fd(opts->target_mac_str, 2);
         ft_putstr_fd("\n", 2);
+        free_options(opts);
         return (-1);
     }
     return 0;
