@@ -22,7 +22,7 @@ $(LIBFT):
 
 $(NAME): $(LIBFT) $(OBJS)
 	@echo "[ft_malcolm] Linking $(NAME)..."
-	$(CC) $(OBJS) $(LDFLAGS) $(LDLIBS) -o $(NAME) -lm
+	$(CC) $(OBJS) $(LDFLAGS) $(LDLIBS) -o $(NAME)
 	@echo "[ft_malcolm] $(NAME) build complete!"
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
